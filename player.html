@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>TVB Player</title>
+  <style>
+    html,body { margin:0; padding:0; height:100%; background:#000; overflow:hidden; }
+    video     { width:100%; height:100%; background:#000; }
+    #channelOverlay {
+      position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+      background:rgba(0,0,0,.7); color:#fff; padding:20px 40px; font:28px sans-serif;
+      border-radius:12px; z-index:9999; opacity:0; transition:opacity .5s ease-in-out;
+      pointer-events:none;
+    }
+    #channelOverlay.show { opacity:1; }
+  </style>
+</head>
+<body>
+  <!-- start **un‑muted** so audio is never silenced -->
+  <video id="video" autoplay playsinline></video>
+  <div id="channelOverlay"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <script>
+    const video = document.getElementById('video');
+    let healthTimer, hasStarted, timeUpdated, hasSkipped;
+
+    function show(msg, dur = 3000) {
+      const o = document.getElementById('channelOverlay');
+      o.textContent = msg; o.classList.add('show');
+      setTimeout(() => o.classList.remove('show'), dur);
+    }
+
+    function skip(reason) {
+      if (hasSkipped) return; hasSkipped = true;
+      console.warn('Skipping:', reason); show('Channel unavailable. Skipping…');
+      window.electronAPI.requestNextChannel();
+    }
+
+    function requestFs() {
+      if (video.requestFullscreen) video.requestFullscreen().catch(()=>{});
+    }
+
+    function setupHealth() {
+      clearTimeout(healthTimer);
+      healthTimer = setTimeout(() => {
+        if (!timeUpdated || video.currentTime === 0 || video.networkState === 3 || video.paused) {
+          skip('stuck loading');
+        }
+      }, 30000); // 30‑second safety timer
+    }
+
+    video.addEventListener('timeupdate', () => (timeUpdated = true));
+    video.addEventListener('playing',     () => {
+      hasStarted = true;
+      video.volume = 1; // make **sure** audio is up
+      requestFs();
+    });
+
+    window.electronAPI.onLoadStream(url => {
+      console.log('Stream:', url);
+      [hasStarted,timeUpdated,hasSkipped]=[false,false,false];
+      show(`Now Playing: ${url}`);
+
+      if (Hls.isSupported()) {
+        const hls = new Hls();
+        hls.attachMedia(video);
+        hls.loadSource(url);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          video.play().then(requestFs).catch(err => { console.error(err); skip('autoplay blocked'); });
+        });
+        hls.on(Hls.Events.ERROR, (_, d) => d.fatal && skip('fatal HLS error'));
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = url;
+        video.play().then(requestFs).catch(err => { console.error(err); skip('native autoplay failed'); });
+      } else {
+        skip('HLS not supported');
+      }
+
+      setupHealth();
+    });
+  </script>
+</body>
+</html>

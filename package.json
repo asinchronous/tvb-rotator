@@ -1,0 +1,47 @@
+{
+    "name": "tvb-rotator",
+    "version": "1.0.0",
+    "description": "Fullscreen Electron player that rotates through a list of TVB streams.",
+    "author": "Your Name <you@example.com>",
+    "license": "MIT",
+    "main": "main.js",
+    "scripts": {
+      "start": "electron .",
+      "pack": "electron-builder --dir",
+      "dist": "electron-builder"
+    },
+    "dependencies": {
+      "auto-launch": "latest"
+    },
+    "devDependencies": {
+      "electron": "latest",
+      "electron-builder": "latest"
+    },
+    "build": {
+      "appId": "com.yourcompany.tvbrotator",
+      "productName": "TVB Rotator",
+      "files": [
+        "main.js",
+        "preload.js",
+        "player.html",
+        "sites.json",
+        "assets/**/*"
+      ],
+      "extraResources": [
+        "sites.json"
+      ],
+      "directories": {
+        "buildResources": "assets"
+      },
+      "asar": true,
+      "win": {
+        "target": [
+          {
+            "target": "nsis",
+            "arch": ["x64"]
+          }
+        ],
+        "artifactName": "TVB Rotator Setup ${version}.${ext}"
+      }
+    }
+  }
