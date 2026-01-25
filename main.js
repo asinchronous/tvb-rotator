@@ -127,6 +127,17 @@ function createWindow() {
     }
   });
 
+  // Prevent Chromium from automatically saving files when a site triggers a download.
+  // This blocks unexpected file downloads (like the tmp file from CCTV sites).
+  try {
+    mainWindow.webContents.session.on('will-download', (event, item) => {
+      console.warn('Blocked download:', item.getFilename(), item.getURL());
+      event.preventDefault();
+    });
+  } catch (err) {
+    console.error('Failed to attach download handler:', err);
+  }
+
   loadCurrentSite();
 
   globalShortcut.register('Right', nextSite);
